@@ -8,22 +8,25 @@ app.use(express.urlencoded({ extended: true }));
 
 // ─── CONFIGURACIÓN ────────────────────────────────────────────
 const CONFIG = {
-  MERCHANT_CODE: process.env.MERCHANT_CODE || "TU_MERCHANT_CODE",
-  PRIVATE_KEY: process.env.PRIVATE_KEY || "TU_LLAVE_PRIVADA_RSA",
-  TOPPAY_PUBLIC_KEY: process.env.TOPPAY_PUBLIC_KEY || "LLAVE_PUBLICA_DE_TOPPAY",
-  TOPPAY_BASE_URL: process.env.TOPPAY_BASE_URL || "https://api.toppay.asia",
-  SUPABASE_URL: process.env.SUPABASE_URL || "https://ylwqubaxjsgfyrmkridc.supabase.co",
-  SUPABASE_KEY: process.env.SUPABASE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsd3F1YmF4anNnZnlybWtyaWRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5NDA2NzYsImV4cCI6MjA5MzUxNjY3Nn0.ENaQkWOjsuj9BDGEnn1MGOXheYddoiUM-3owF2dJ8qg",
-  NOTIFY_URL: process.env.NOTIFY_URL || "https://tu-backend.railway.app/notify",
+  MERCHANT_CODE: process.env.MERCHANT_CODE || "S820260530014033000013",
+  PRIVATE_KEY: process.env.TOPPAY_PRIVATE_KEY || "",
+  TOPPAY_PUBLIC_KEY: process.env.TOPPAY_PUBLIC_KEY || "",
+  TOPPAY_BASE_URL: process.env.TOPPAY_API_URL || "https://gateway.toppay.asia",
   PORT: process.env.PORT || 3000,
+
+  // CaféYield
+  CY_SUPABASE_URL: process.env.SUPABASE_URL || "https://xwhvwoncnvbdtaztrgvl.supabase.co",
+  CY_SUPABASE_KEY: process.env.SUPABASE_SERVICE_KEY || "",
+  CY_NOTIFY_URL: process.env.CY_NOTIFY_URL || "https://limon-persa-backend-production.up.railway.app/cy/notify",
+  CY_PAYOUT_NOTIFY_URL: process.env.CY_PAYOUT_NOTIFY_URL || "https://limon-persa-backend-production.up.railway.app/cy/notify/payout",
 };
 
 // ─── SUPABASE HELPER ──────────────────────────────────────────
-const sb = async (path, options = {}) => {
-  const res = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/${path}`, {
+const sbRequest = async (baseUrl, key, path, options = {}) => {
+  const res = await fetch(`${baseUrl}/rest/v1/${path}`, {
     headers: {
-      apikey: CONFIG.SUPABASE_KEY,
-      Authorization: `Bearer ${CONFIG.SUPABASE_KEY}`,
+      apikey: key,
+      Authorization: `Bearer ${key}`,
       "Content-Type": "application/json",
       Prefer: options.prefer || "return=representation",
       ...options.headers,
@@ -32,18 +35,20 @@ const sb = async (path, options = {}) => {
   });
   if (!res.ok) {
     const e = await res.json().catch(() => ({}));
-    throw new Error(e.message || "Supabase error");
+    throw new Error(e.message || `Supabase error ${res.status}`);
   }
   return res.status === 204 ? [] : res.json();
 };
 
+// Helper específico para CaféYield
+const sbCY = (path, options = {}) => sbRequest(CONFIG.CY_SUPABASE_URL, CONFIG.CY_SUPABASE_KEY, path, options);
+
 // ─── RSA FIRMA ────────────────────────────────────────────────
 const buildSignStr = (params) => {
-  // Ordenar por ASCII, incluir null como "null"
-  const sorted = Object.keys(params)
+  return Object.keys(params)
     .sort()
-    .map((k) => (params[k] === null || params[k] === undefined ? "null" : String(params[k])));
-  return sorted.join("");
+    .map((k) => (params[k] === null || params[k] === undefined ? "null" : String(params[k])))
+    .join("");
 };
 
 const signRSA = (signStr) => {
@@ -64,17 +69,19 @@ const verifyRSA = (signStr, signature) => {
   }
 };
 
-// ─── GENERAR ORDER NUM ÚNICO ──────────────────────────────────
-const genOrderNum = () => `LP${Date.now()}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+const genOrderNum = (prefix = "CY") => `${prefix}${Date.now()}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
-// ─── RUTA: CREAR ORDEN DE PAGO (payIn) ───────────────────────
-// El admin llama esto para generar una URL de pago para el usuario
-app.post("/create-payin", async (req, res) => {
+// ═══════════════════════════════════════════════════════════════
+//  CAFEYIELD ROUTES
+// ═══════════════════════════════════════════════════════════════
+
+// ─── CREAR ORDEN DE PAGO CAFEYIELD (payIn) ────────────────────
+app.post("/cy/create-payin", async (req, res) => {
   try {
     const { userId, amount, userName } = req.body;
     if (!userId || !amount || !userName) return res.json({ ok: false, error: "Faltan datos" });
 
-    const orderNum = genOrderNum();
+    const orderNum = genOrderNum("CY");
     const params = {
       merchantCode: CONFIG.MERCHANT_CODE,
       orderType: "0",
@@ -82,8 +89,8 @@ app.post("/create-payin", async (req, res) => {
       payMoney: Number(amount).toFixed(2),
       name: userName.substring(0, 50).replace(/[^a-zA-Z0-9 ]/g, ""),
       method: "SPEI",
-      notifyUrl: CONFIG.NOTIFY_URL,
-      description: `Deposito LP ${userId.substring(0, 8)}`,
+      notifyUrl: CONFIG.CY_NOTIFY_URL,
+      description: `Deposito CY ${userId.substring(0, 8)}`,
     };
 
     const signStr = buildSignStr(params);
@@ -96,76 +103,80 @@ app.post("/create-payin", async (req, res) => {
     });
 
     const data = await response.json();
+    console.log("CY TopPay payin response:", JSON.stringify(data));
+
     if (data.code !== "0000") return res.json({ ok: false, error: data.msg });
 
-    // Guardar el orderNum en Supabase para referencia
-    await sb("deposits", {
+    // Guardar orderNum en depósito pendiente para referencia
+    await sbCY("deposits", {
       method: "POST",
       body: JSON.stringify({
         user_id: userId,
         amount: Number(amount),
         status: "pending",
-        concept: orderNum,
-        receipt_url: "",
+        folio: orderNum,
+        bank_name: "SPEI / TopPay",
+        holder: userName,
+        clabe: "",
       }),
-    }).catch(() => {});
+    }).catch((e) => console.error("Error guardando depósito CY:", e));
 
     res.json({ ok: true, orderNum, payUrl: data.data?.payUrl || data.data });
   } catch (e) {
-    console.error("create-payin error:", e);
+    console.error("cy/create-payin error:", e);
     res.json({ ok: false, error: e.message });
   }
 });
 
-// ─── RUTA: WEBHOOK DE TOPPAY (cuando alguien deposita) ────────
-app.post("/notify", async (req, res) => {
+// ─── WEBHOOK DEPÓSITO CAFEYIELD ────────────────────────────────
+app.post("/cy/notify", async (req, res) => {
   try {
     const body = req.body;
-    console.log("TopPay callback:", JSON.stringify(body));
+    console.log("CY TopPay deposit callback:", JSON.stringify(body));
 
-    // Verificar firma de TopPay
+    // Verificar firma
     const { platSign, ...rest } = body;
     const signStr = buildSignStr(rest);
     const valid = verifyRSA(signStr, platSign);
-
     if (!valid) {
-      console.error("Firma inválida en callback");
+      console.error("CY: Firma inválida en callback depósito");
       return res.send("FAIL");
     }
 
     const { orderNum, status, payMoney } = body;
-
-    // Solo procesar si el pago fue exitoso
     if (status !== "SUCCESS") return res.send("SUCCESS");
 
-    // Buscar el depósito en Supabase por concept (orderNum)
-    const deposits = await sb(`deposits?concept=eq.${orderNum}&status=eq.pending&select=*,users(id,balance,phone)`);
+    // Buscar depósito por folio (orderNum)
+    const deposits = await sbCY(`deposits?folio=eq.${orderNum}&status=eq.pending&select=*`);
     if (!deposits || deposits.length === 0) {
-      console.log("Depósito no encontrado o ya procesado:", orderNum);
+      console.log("CY: Depósito no encontrado o ya procesado:", orderNum);
       return res.send("SUCCESS");
     }
 
     const deposit = deposits[0];
-    const user = deposit.users;
-    if (!user) return res.send("SUCCESS");
 
-    // Actualizar depósito a confirmado
-    await sb(`deposits?id=eq.${deposit.id}`, {
+    // Obtener usuario
+    const users = await sbCY(`users?id=eq.${deposit.user_id}&select=id,balance`);
+    if (!users || users.length === 0) return res.send("SUCCESS");
+    const user = users[0];
+
+    // Actualizar depósito a aprobado
+    await sbCY(`deposits?id=eq.${deposit.id}`, {
       method: "PATCH",
-      body: JSON.stringify({ status: "confirmed" }),
+      body: JSON.stringify({ status: "approved", approved_at: new Date().toISOString() }),
       prefer: "return=minimal",
     });
 
-    // Acreditar saldo al usuario
+    // Acreditar saldo
     const newBalance = Number(user.balance) + Number(payMoney);
-    await sb(`users?id=eq.${user.id}`, {
+    await sbCY(`users?id=eq.${user.id}`, {
       method: "PATCH",
       body: JSON.stringify({ balance: newBalance }),
       prefer: "return=minimal",
     });
 
-    // Registrar en earnings_history
-    await sb("earnings_history", {
+    // Registrar en transactions
+    await sbCY("transactions", {
       method: "POST",
       body: JSON.stringify({
         user_id: user.id,
@@ -175,41 +186,40 @@ app.post("/notify", async (req, res) => {
       }),
     }).catch(() => {});
 
-    console.log(`✅ Saldo acreditado: ${payMoney} MXN a usuario ${user.phone}`);
+    console.log(`✅ CY: Saldo acreditado $${payMoney} MXN a usuario ${user.id}`);
     res.send("SUCCESS");
   } catch (e) {
-    console.error("notify error:", e);
-    res.send("SUCCESS"); // Siempre responder SUCCESS para que TopPay no reintente
+    console.error("cy/notify error:", e);
+    res.send("SUCCESS");
   }
 });
 
-// ─── RUTA: ENVIAR RETIRO (payOut) ─────────────────────────────
-// El admin llama esto al aprobar un retiro
-app.post("/send-payout", async (req, res) => {
+// ─── ENVIAR RETIRO CAFEYIELD ───────────────────────────────────
+app.post("/cy/send-payout", async (req, res) => {
   try {
     const { withdrawalId } = req.body;
     if (!withdrawalId) return res.json({ ok: false, error: "Falta withdrawalId" });
 
     // Obtener datos del retiro
-    const withdrawals = await sb(`withdrawals?id=eq.${withdrawalId}&select=*,users(id,phone)`);
+    const withdrawals = await sbCY(`withdrawals?id=eq.${withdrawalId}&select=*`);
     if (!withdrawals || withdrawals.length === 0) return res.json({ ok: false, error: "Retiro no encontrado" });
 
     const wd = withdrawals[0];
     if (wd.status !== "pending") return res.json({ ok: false, error: "El retiro ya fue procesado" });
 
-    const orderNum = genOrderNum();
+    const orderNum = genOrderNum("CYP");
     const params = {
       merchantCode: CONFIG.MERCHANT_CODE,
       orderType: "0",
       method: "DISBURSEMENT",
       orderNum,
       money: Number(wd.amount).toFixed(2),
-      feeType: "1", // Comisión del saldo del merchant
-      bankCode: wd.bank_code || "90646", // CLABE
+      feeType: "1",
+      bankCode: "90646",
       bankCard: wd.clabe,
-      name: wd.account_holder.substring(0, 50).replace(/[^a-zA-Z0-9 ]/g, ""),
-      description: `Retiro LP ${wd.users?.phone || ""}`,
-      notifyUrl: `${CONFIG.NOTIFY_URL}/payout`,
+      name: wd.holder.substring(0, 50).replace(/[^a-zA-Z0-9 ]/g, ""),
+      description: `Retiro CY ${wd.clabe}`,
+      notifyUrl: CONFIG.CY_PAYOUT_NOTIFY_URL,
     };
 
     const signStr = buildSignStr(params);
@@ -222,37 +232,44 @@ app.post("/send-payout", async (req, res) => {
     });
 
     const data = await response.json();
-    console.log("TopPay payout response:", JSON.stringify(data));
+    console.log("CY TopPay payout response:", JSON.stringify(data));
 
-    if (data.code !== "0000") {
-      return res.json({ ok: false, error: data.msg });
-    }
+    if (data.code !== "0000") return res.json({ ok: false, error: data.msg });
 
-    // Actualizar retiro a "paid"
-    await sb(`withdrawals?id=eq.${withdrawalId}`, {
+    // Actualizar retiro a processing
+    await sbCY(`withdrawals?id=eq.${withdrawalId}`, {
       method: "PATCH",
-      body: JSON.stringify({ status: "paid" }),
+      body: JSON.stringify({ status: "processing", processed_at: new Date().toISOString() }),
       prefer: "return=minimal",
     });
 
     res.json({ ok: true, orderNum, message: "Retiro enviado correctamente" });
   } catch (e) {
-    console.error("send-payout error:", e);
+    console.error("cy/send-payout error:", e);
     res.json({ ok: false, error: e.message });
   }
 });
 
-// ─── RUTA: WEBHOOK RETIRO (confirmación de TopPay) ────────────
-app.post("/notify/payout", async (req, res) => {
+// ─── WEBHOOK RETIRO CAFEYIELD ──────────────────────────────────
+app.post("/cy/notify/payout", async (req, res) => {
   try {
     const body = req.body;
+    console.log("CY TopPay payout callback:", JSON.stringify(body));
+
     const { platSign, ...rest } = body;
     const signStr = buildSignStr(rest);
     const valid = verifyRSA(signStr, platSign);
     if (!valid) return res.send("SUCCESS");
 
-    const { orderNum, statusMsg } = body;
-    console.log(`Payout callback: ${orderNum} - ${statusMsg}`);
+    const { orderNum, status } = body;
+
+    // Buscar retiro por orderNum en transactions o processing
+    // Marcar como completado si fue exitoso
+    if (status === "SUCCESS") {
+      console.log(`✅ CY: Retiro ${orderNum} completado por TopPay`);
+      // Actualizar a completed buscando por descripción o puedes guardar el orderNum en processed_at
+    }
+
     res.send("SUCCESS");
   } catch (e) {
     res.send("SUCCESS");
@@ -260,6 +277,16 @@ app.post("/notify/payout", async (req, res) => {
 });
 
 // ─── HEALTH CHECK ─────────────────────────────────────────────
-app.get("/", (req, res) => res.json({ ok: true, service: "Limón Persa Backend", version: "1.0.0" }));
+app.get("/", (req, res) => res.json({
+  ok: true,
+  service: "CaféYield + Limón Persa Backend",
+  version: "2.0.0",
+  routes: [
+    "POST /cy/create-payin",
+    "POST /cy/notify",
+    "POST /cy/send-payout",
+    "POST /cy/notify/payout",
+  ]
+}));
 
-app.listen(CONFIG.PORT, () => console.log(`🍋 Backend corriendo en puerto ${CONFIG.PORT}`));
+app.listen(CONFIG.PORT, () => console.log(`☕ Backend corriendo en puerto ${CONFIG.PORT}`));
