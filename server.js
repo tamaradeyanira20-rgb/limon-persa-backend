@@ -61,13 +61,16 @@ const buildSignStr = (params) => {
 };
 
 const formatKey = (key, type) => {
+  if (!key) throw new Error(`Llave ${type} no configurada en variables de entorno`);
   // Si ya tiene headers PEM, usarla tal cual
   if (key.includes('-----BEGIN')) return key;
-  // Agregar headers según tipo
   const header = type === 'private' ? 'RSA PRIVATE KEY' : 'PUBLIC KEY';
-  // Dividir en líneas de 64 chars si no las tiene
-  const body = key.replace(/\s/g, '').match(/.{1,64}/g).join('\n');
-  return `-----BEGIN ${header}-----\n${body}\n-----END ${header}-----`;
+  // Limpiar espacios y saltos de línea, luego dividir en líneas de 64 chars
+  const clean = key.replace(/[\s\r\n]/g, '');
+  if (!clean) throw new Error(`Llave ${type} está vacía`);
+  const lines = [];
+  for (let i = 0; i < clean.length; i += 64) lines.push(clean.slice(i, i + 64));
+  return `-----BEGIN ${header}-----\n${lines.join('\n')}\n-----END ${header}-----`;
 };
 
 const signRSA = (signStr) => {
