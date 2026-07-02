@@ -124,6 +124,7 @@ app.post("/cy/create-payin", async (req, res) => {
     };
 
     const signStr = buildSignStr(params);
+    console.log("signStr:", signStr);
     params.sign = signRSA(signStr);
 
     const response = await fetch(`${CONFIG.TOPPAY_BASE_URL}/gateway/pay`, {
@@ -135,7 +136,7 @@ app.post("/cy/create-payin", async (req, res) => {
     const data = await response.json();
     console.log("CY TopPay payin response:", JSON.stringify(data));
 
-    if (data.code !== "0000") return res.json({ ok: false, error: data.msg });
+    if (data.platRespCode !== "SUCCESS") return res.json({ ok: false, error: data.platRespMessage || data.msg || JSON.stringify(data) });
 
     // Guardar orderNum en depósito pendiente para referencia
     await sbCY("deposits", {
@@ -266,7 +267,7 @@ app.post("/cy/send-payout", async (req, res) => {
     const data = await response.json();
     console.log("CY TopPay payout response:", JSON.stringify(data));
 
-    if (data.code !== "0000") return res.json({ ok: false, error: data.msg });
+    if (data.platRespCode !== "SUCCESS") return res.json({ ok: false, error: data.platRespMessage || data.msg || JSON.stringify(data) });
 
     // Actualizar retiro a processing
     await sbCY(`withdrawals?id=eq.${withdrawalId}`, {
