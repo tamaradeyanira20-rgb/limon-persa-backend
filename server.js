@@ -1,3 +1,4 @@
+
 const express = require("express");
 const crypto = require("crypto");
 
@@ -17,7 +18,7 @@ app.use((req, res, next) => {
 // ─── CONFIGURACIÓN ────────────────────────────────────────────
 const CONFIG = {
   MERCHANT_CODE: process.env.MERCHANT_CODE || "S820260530014033000013",
-  PRIVATE_KEY: process.env.PRIVATE_KEY || process.env.TOPPAY_PRIVATE_KEY || "",
+  PRIVATE_KEY: process.env.RSA_PRIVATE_KEY || process.env.PRIVATE_KEY || process.env.TOPPAY_PRIVATE_KEY || "",
   TOPPAY_PUBLIC_KEY: process.env.TOPPAY_PUBLIC_KEY || "",
   TOPPAY_BASE_URL: process.env.TOPPAY_API_URL || "https://gateway.toppay.asia",
   PORT: process.env.PORT || 3000,
@@ -61,7 +62,7 @@ const buildSignStr = (params) => {
     .join('&');
 };
 
-console.log("PRIVATE_KEY:", process.env.PRIVATE_KEY || process.env.TOPPAY_PRIVATE_KEY ? process.env.PRIVATE_KEY || process.env.TOPPAY_PRIVATE_KEY.substring(0,20)+"..." : "VACIA");
+console.log("PRIVATE_KEY:", process.env.RSA_PRIVATE_KEY || process.env.PRIVATE_KEY || process.env.TOPPAY_PRIVATE_KEY ? process.env.RSA_PRIVATE_KEY || process.env.PRIVATE_KEY || process.env.TOPPAY_PRIVATE_KEY.substring(0,20)+"..." : "VACIA");
 
 const formatKey = (key, type) => {
   if (!key) throw new Error(`Llave ${type} no configurada en variables de entorno`);
