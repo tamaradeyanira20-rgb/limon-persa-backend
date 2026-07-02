@@ -147,8 +147,8 @@ app.post("/cy/create-payin", async (req, res) => {
       }),
     }).catch((e) => console.error("Error guardando depósito:", e));
 
-    const payData = data.data?.payData || data.data?.payUrl || data.data || '';
-    const bankName = data.data?.orgName || 'STP';
+    const payData = data.payData || data.data?.payData || data.data?.payUrl || '';
+    const bankName = data.orgName || data.data?.orgName || 'STP';
     res.json({ ok: true, orderNum, clabe: payData, bankName });
   } catch (e) {
     console.error("cy/create-payin error:", e.message);
