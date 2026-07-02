@@ -63,15 +63,21 @@ console.log("PRIVATE_KEY:", process.env.PRIVATE_KEY || process.env.TOPPAY_PRIVAT
 
 const formatKey = (key, type) => {
   if (!key) throw new Error(`Llave ${type} no configurada en variables de entorno`);
-  // Si ya tiene headers PEM, usarla tal cual
   if (key.includes('-----BEGIN')) return key;
-  const header = type === 'private' ? 'RSA PRIVATE KEY' : 'PUBLIC KEY';
-  // Limpiar espacios y saltos de línea, luego dividir en líneas de 64 chars
   const clean = key.replace(/[\s\r\n]/g, '');
   if (!clean) throw new Error(`Llave ${type} está vacía`);
   const lines = [];
   for (let i = 0; i < clean.length; i += 64) lines.push(clean.slice(i, i + 64));
-  return `-----BEGIN ${header}-----\n${lines.join('\n')}\n-----END ${header}-----`;
+  // Intentar ambos formatos: PKCS#1 y PKCS#8
+  if (type === 'private') {
+    // Detectar si es PKCS#8 (empieza con MIIEvA o similar largo) o PKCS#1
+    const isPKCS8 = clean.startsWith('MIIEvA') || clean.startsWith('MIIEow') || 
+                    clean.startsWith('MIIEvg') || clean.startsWith('MIICdw') ||
+                    clean.startsWith('MIICeA');
+    const header = isPKCS8 ? 'PRIVATE KEY' : 'RSA PRIVATE KEY';
+    return `-----BEGIN ${header}-----\n${lines.join('\n')}\n-----END ${header}-----`;
+  }
+  return `-----BEGIN PUBLIC KEY-----\n${lines.join('\n')}\n-----END PUBLIC KEY-----`;
 };
 
 const signRSA = (signStr) => {
