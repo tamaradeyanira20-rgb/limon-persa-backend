@@ -53,10 +53,12 @@ const sbCY = (path, options = {}) => sbRequest(CONFIG.CY_SUPABASE_URL, CONFIG.CY
 
 // ─── RSA FIRMA ────────────────────────────────────────────────
 const buildSignStr = (params) => {
+  // TopPay: ordenar keys por ASCII, concatenar key=value& excluyendo sign y valores vacíos/null
   return Object.keys(params)
+    .filter(k => k !== 'sign' && params[k] !== null && params[k] !== undefined && params[k] !== '')
     .sort()
-    .map((k) => (params[k] === null || params[k] === undefined ? "null" : String(params[k])))
-    .join("");
+    .map(k => `${k}=${params[k]}`)
+    .join('&');
 };
 
 console.log("PRIVATE_KEY:", process.env.PRIVATE_KEY || process.env.TOPPAY_PRIVATE_KEY ? process.env.PRIVATE_KEY || process.env.TOPPAY_PRIVATE_KEY.substring(0,20)+"..." : "VACIA");
