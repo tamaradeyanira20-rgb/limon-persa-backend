@@ -70,11 +70,11 @@ const formatKey = (key, type) => {
   for (let i = 0; i < clean.length; i += 64) lines.push(clean.slice(i, i + 64));
   // Intentar ambos formatos: PKCS#1 y PKCS#8
   if (type === 'private') {
-    // Detectar si es PKCS#8 (empieza con MIIEvA o similar largo) o PKCS#1
-    const isPKCS8 = clean.startsWith('MIIEvA') || clean.startsWith('MIIEow') || 
-                    clean.startsWith('MIIEvg') || clean.startsWith('MIICdw') ||
-                    clean.startsWith('MIICeA');
+    // PKCS#8 empieza con MIICdw, MIIEvA, MIIEow etc (tiene DANBgkq en los primeros bytes)
+    // PKCS#1 empieza con MIICXQIBAAKBgQ
+    const isPKCS8 = !clean.startsWith('MIICXQIBAAKBgQ') && !clean.startsWith('MIIBygIBAAJB');
     const header = isPKCS8 ? 'PRIVATE KEY' : 'RSA PRIVATE KEY';
+    console.log("Usando header:", header, "isPKCS8:", isPKCS8, "starts:", clean.substring(0,20));
     return `-----BEGIN ${header}-----\n${lines.join('\n')}\n-----END ${header}-----`;
   }
   return `-----BEGIN PUBLIC KEY-----\n${lines.join('\n')}\n-----END PUBLIC KEY-----`;
