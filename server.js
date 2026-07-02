@@ -75,9 +75,21 @@ const formatKey = (key, type) => {
 
 const signRSA = (signStr) => {
   const privateKey = formatKey(CONFIG.PRIVATE_KEY, 'private');
-  const sign = crypto.createSign("SHA1");
-  sign.update(signStr);
-  return sign.sign(privateKey, "base64");
+  // TopPay usa cifrado RSA por bloques con llave privada (código oficial TopPay Node.js)
+  const buffer = Buffer.from(signStr, 'utf8');
+  const maxBlockSize = 117;
+  let offset = 0;
+  let encryptedBuffer = Buffer.alloc(0);
+  while (offset < buffer.length) {
+    const block = buffer.slice(offset, Math.min(offset + maxBlockSize, buffer.length));
+    const encryptedBlock = crypto.privateEncrypt(
+      { key: privateKey, padding: crypto.constants.RSA_PKCS1_PADDING },
+      block
+    );
+    encryptedBuffer = Buffer.concat([encryptedBuffer, encryptedBlock]);
+    offset += block.length;
+  }
+  return encryptedBuffer.toString('base64');
 };
 
 const verifyRSA = (signStr, signature) => {
