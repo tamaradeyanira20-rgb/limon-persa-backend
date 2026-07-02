@@ -60,8 +60,18 @@ const buildSignStr = (params) => {
     .join("");
 };
 
+const formatKey = (key, type) => {
+  // Si ya tiene headers PEM, usarla tal cual
+  if (key.includes('-----BEGIN')) return key;
+  // Agregar headers según tipo
+  const header = type === 'private' ? 'RSA PRIVATE KEY' : 'PUBLIC KEY';
+  // Dividir en líneas de 64 chars si no las tiene
+  const body = key.replace(/\s/g, '').match(/.{1,64}/g).join('\n');
+  return `-----BEGIN ${header}-----\n${body}\n-----END ${header}-----`;
+};
+
 const signRSA = (signStr) => {
-  const privateKey = `-----BEGIN RSA PRIVATE KEY-----\n${CONFIG.PRIVATE_KEY}\n-----END RSA PRIVATE KEY-----`;
+  const privateKey = formatKey(CONFIG.PRIVATE_KEY, 'private');
   const sign = crypto.createSign("SHA1");
   sign.update(signStr);
   return sign.sign(privateKey, "base64");
@@ -69,7 +79,7 @@ const signRSA = (signStr) => {
 
 const verifyRSA = (signStr, signature) => {
   try {
-    const publicKey = `-----BEGIN PUBLIC KEY-----\n${CONFIG.TOPPAY_PUBLIC_KEY}\n-----END PUBLIC KEY-----`;
+    const publicKey = formatKey(CONFIG.TOPPAY_PUBLIC_KEY, 'public');
     const verify = crypto.createVerify("SHA1");
     verify.update(signStr);
     return verify.verify(publicKey, signature, "base64");
