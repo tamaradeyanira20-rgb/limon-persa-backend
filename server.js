@@ -1,4 +1,3 @@
-
 const express = require("express");
 const crypto = require("crypto");
 
@@ -18,7 +17,7 @@ app.use((req, res, next) => {
 // ─── CONFIGURACIÓN ────────────────────────────────────────────
 const CONFIG = {
   MERCHANT_CODE: process.env.MERCHANT_CODE || "S820260530014033000013",
-  PRIVATE_KEY: process.env.RSA_PRIVATE_KEY || process.env.PRIVATE_KEY || process.env.TOPPAY_PRIVATE_KEY || "",
+  PRIVATE_KEY: process.env.RSA_PRIVATE_KEY || process.env.PRIVATE_KEY || process.env.TOPPAY_PRIVATE_KEY || "MIICdgIBADANBgkqhkiG9w0BAQEFAASCAmAwggJcAgEAAoGBAIHRs9uWfIRJ2OfT+7fYTaYnpg5ytDG1VzfS2QwTgJw2Gbe4fE/7Qi/cwNUxXl8HsvN5ITGpdlp8Uw358QclrG8dWKT7ppwzC7xIhBrqgm9teKK1sn997RUlqho0q8VnTxJ+89SMvj5svYsxhcH+bV9lr3PkDDogjdlKSUfj+DwnAgMBAAECgYA9W+Cm6XnxDPZ4nLldK9+HqTXTnmONGykeOYpdKtqe+vMs4wXex+OAu9Zo7eys/faXHamSz4YhPqIC+R/zQNs+9VXt172UYymQG1XxxWDvgVhZMoFSe/u4xZpu0aUpOSQLp59q1nBztet4pMxGtbXJg7mpnmdG0Q7Cc7I/bK+gAQJBAPbBV8Hng7W/bAYFZKUQ87b1ia10S+PtYqmms3YNnTsamdCttQ69rxaUTGtx75wfSllCYa7B5AOn7gA7dAXpiBcCQQCGrtAFjYp3fzISDFsR+5/s7TFF6HlxJ3Wlo8LxOsLlv4oJ83VDEN9qiBEm1IUk+oS0mSBKTsoCzW1iel0h5mZxAkEAwpbh/9X09gTIyU7DebCOoT+snQ7TMiFn5uXBLF28Gnn1xqzV1ZQcWTAFu82T6Yh7dzx0D/5zM7bgZ2p7KpZpbQJAbOXf8P123hQMaidvY2Tu9GT8mCfWObXMHDgDIYV/nMB4Xn9pauaznrGSHLFtTm746gV95Fc8Y3OyZBPIRebDIQJAZVAnLLWMBgNoPdmaP3KtaiOTnZq86wZ1a7MdZOkcXbLYmgz0gb9NJ4R0xerWo/0Je6A5FwpelxaI4s/qoi+6pg==",
   TOPPAY_PUBLIC_KEY: process.env.TOPPAY_PUBLIC_KEY || "",
   TOPPAY_BASE_URL: process.env.TOPPAY_API_URL || "https://gateway.toppay.asia",
   PORT: process.env.PORT || 3000,
