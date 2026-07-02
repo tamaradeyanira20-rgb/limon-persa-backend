@@ -82,6 +82,7 @@ const formatKey = (key, type) => {
 
 const signRSA = (signStr) => {
   const privateKey = formatKey(CONFIG.PRIVATE_KEY, 'private');
+  console.log("KEY HEADER:", privateKey.split('\n')[0]);
   const sign = crypto.createSign("SHA1");
   sign.update(signStr);
   return sign.sign(privateKey, "base64");
