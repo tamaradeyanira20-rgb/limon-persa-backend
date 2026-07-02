@@ -60,6 +60,8 @@ const buildSignStr = (params) => {
     .join("");
 };
 
+console.log("PRIVATE_KEY:", process.env.TOPPAY_PRIVATE_KEY ? process.env.TOPPAY_PRIVATE_KEY.substring(0,20)+"..." : "VACIA");
+
 const formatKey = (key, type) => {
   if (!key) throw new Error(`Llave ${type} no configurada en variables de entorno`);
   // Si ya tiene headers PEM, usarla tal cual
