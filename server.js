@@ -1,6 +1,5 @@
 const express = require("express");
 const crypto = require("crypto");
-const fetch = require("node-fetch");
 
 const app = express();
 app.use(express.json());
@@ -316,3 +315,11 @@ app.get("/", (req, res) => res.json({
 }));
 
 app.listen(CONFIG.PORT, () => console.log(`☕ Backend corriendo en puerto ${CONFIG.PORT}`));
+
+process.on('uncaughtException', (err) => {
+  console.error('Error no capturado:', err.message);
+  console.error(err.stack);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('Promise rechazada:', reason);
+});
