@@ -212,12 +212,15 @@ app.post("/cy/send-payout", async (req, res) => {
     const wd = withdrawals[0];
     if (wd.status !== "pending") return res.json({ ok: false, error: "Ya procesado" });
     const orderNum = genOrderNum("CYP");
+    // Descontar comisión del 15% antes de enviar a TopPay
+    const montoNeto = (Number(wd.amount) * 0.85).toFixed(2);
+    console.log(`Retiro: $${wd.amount} - 15% = $${montoNeto}`);
     const params = {
       merchantCode: CONFIG.MERCHANT_CODE,
       orderType: "0",
       method: "DISBURSEMENT",
       orderNum,
-      money: Number(wd.amount).toFixed(2),
+      money: montoNeto,
       feeType: "1",
       bankCode: "90646",
       bankCard: wd.clabe,
